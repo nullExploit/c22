@@ -1,0 +1,253 @@
+<%- include('partials/header') %>
+    <div class="card mb-5 mt-5">
+        <div class="card-header p-4">
+            <h1 class="text-center">Todo List</h1>
+        </div>
+        <form action="" autocomplete="off">
+            <input type="hidden" name="page" value="1">
+            <input type="hidden" name="sortBy" value="deadline">
+            <input type="hidden" name="sortMode" value="desc">
+            <div class="m-3 row">
+                <label for="name" class="col-sm-2 col-form-label">Title</label>
+                <div class="col-sm-10">
+                    <input type="text" class="form-control" id="title" name="title" value="<%= title %>"
+                        placeholder="Insert your title">
+                </div>
+            </div>
+            <div class="m-3 row">
+                <label for="deadlineFrom" class="col-sm-2 col-form-label">Deadline</label>
+                <div class="col-sm-4">
+                    <input type="datetime-local" class="form-control" id="startdateDeadline" name="startdateDeadline"
+                        value="<%= startdateDeadline %>">
+                </div>
+                <div class="col-sm-2">
+                    <span class="text-center d-block">s.d</span>
+                </div>
+                <div class="col-sm-4">
+                    <input type="datetime-local" class="form-control" id="enddateDeadline" name="enddateDeadline"
+                        value="<%= enddateDeadline %>">
+                </div>
+            </div>
+            <div class="m-3 row">
+                <label for="complete" class="col-sm-2 col-form-label">Complete</label>
+                <div class="col-sm-10">
+                    <select id="complete" class="form-select" name="complete">
+                        <option value="" selected>- Select Complete -</option>
+                        <option value="true" <%=complete=="true" ? "selected" : "" %>>Yes</option>
+                        <option value="false" <%=complete=="false" ? "selected" : "" %>>Not yet</option>
+                    </select>
+                </div>
+            </div>
+            <div class="m-3 row">
+                <div class="col-sm-2">
+                    <a id="deadlineSort" class="btn btn-success"><i class="fa-solid fa-sort"></i> sort by deadline</a>
+                </div>
+                <div class="col-sm-5">
+                    <a id="buttonReset" class="btn btn-warning"><i class="fa-solid fa-rotate"></i></a>
+                    <button type="submit" class="btn btn-info"><i class="fa-solid fa-magnifying-glass"></i></button>
+                </div>
+            </div>
+        </form>
+        <div class="card-footer d-flex">
+            <input type="text" class="form-control" placeholder="title" id="addItem">
+            <button class="btn btn-outline-primary" onclick="addTodo(window.location.pathname.split('/')[2])"><i
+                    class="fa-solid fa-circle-arrow-down"></i></button>
+        </div>
+        <div id="todos">
+        </div>
+    </div>
+    <script>
+        const search = new URLSearchParams(window.location.search)
+        let html = ''
+        let loop = ''
+        let ind = 1
+
+        function repeat() {
+            if ($(window).scrollTop() == $(document).height() - $(window).height()) {
+                main()
+            }
+        }
+
+        $(window).scroll(repeat)
+
+        $(document).ready(() => {
+            main()
+        })
+
+        async function main() {
+            try {
+                const datas = await request(ind++)
+
+                if (datas.page >= datas.pages) $(window).off()
+
+                for (let data of datas.todo) {
+                    const todo = await getTodo(data._id) || {}
+
+                    window.location.href == `http://localhost:3000/users/${data.executor}/todos` ? window.location.href += "?sortBy=deadline&sortMode=desc&limit=10" : window.location.href
+
+                    html += `
+                    <div class="alert alert-${data.complete ? "success" : data.deadline < new Date().toLocaleString('af-ZA') ? "danger" : "secondary"}" role="alert">
+                        <div class="row">
+                            <div class="col-sm-11">
+                                ${new Date(data.deadline).toLocaleString('en-GB').replaceAll("/", "-").replace(",", "").slice(0, 16).replace(".", ":")} ${data.title}
+                            </div>
+                            <div class="col-sm-1 d-flex justify-content-sm-around align-items-center">
+                                <i class="fa-solid fa-pen" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#editItem${data._id}"></i>
+                                <i class="fa-solid fa-trash" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#deleteItem${data._id}"></i>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <div class="modal fade" id="editItem${data._id}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+                        aria-labelledby="staticBackdropLabel" aria-hidden="true">
+                        <div class="modal-dialog" style="background: none ;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                            <h1 class="modal-title fs-5" id="staticBackdropLabel">Update Todo</h1>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                        <div class="modal-body">
+                                <div class="mb-3 row">
+                                    <div class="col-sm-2">
+                                    <label for="title${data._id}" class="form-label mt-1">Title</label>
+                                    </div>
+                                    <div class="col-sm-10">
+                                    <input type="text" class="form-control" id="title${data._id}" name="title" value="${todo[0].title}">
+                                    </div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <div class="col-sm-2">
+                                    <label for="deadline${data._id}" class="form-label mt-1">Deadline</label>
+                                    </div>
+                                    <div class="col-sm-10">
+                                    <input type="datetime-local" class="form-control" id="deadline${data._id}" name="deadline" value="${todo[0].deadline}">
+                                    </div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <div class="col-sm-2">
+                                        <label for="complete${data._id}" class="form-label mt-1">Complete</label>
+                                    </div>
+                                    <div class="col-sm-10">
+                                        <input type="checkbox" class="form-check-input mt-2 mx-1" id="complete${data._id}" name="complete" ${todo[0].complete ? "checked" : ""}>
+                                        <label for="complete${data._id}" class="form-label mt-1">Done</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-primary" onclick="editTodo('${data._id}')">Save Changes</button>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+
+                    <div class="modal fade" id="deleteItem${data._id}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+                        aria-labelledby="staticBackdropLabel" aria-hidden="true">
+                        <div class="modal-dialog" style="background: none ;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                            <h1 class="modal-title fs-5" id="staticBackdropLabel">Delete Confirmation</h1>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>are you sure?</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+                                <button type="submit" class="btn btn-primary" onclick="deleteTodo('${data._id}')">Yes</button>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    `
+                }
+
+                $("#todos").html(html)
+
+                $("#deadlineSort").attr("href", search.get("sortMode") == "desc" ? window.location.href.replace(`sortMode=${search.get("sortMode")}`, "sortMode=asc") : window.location.href.replace(`sortMode=${search.get("sortMode")}`, "sortMode=desc"))
+
+                $("#buttonReset").attr("href", `${window.location.origin}${window.location.pathname}`)
+
+            } catch (error) {
+                console.log(error)
+            }
+        }
+
+        async function request(page) {
+            try {
+                const res = await $.ajax({
+                    method: "GET",
+                    url: `/api/todos?executor=${window.location.pathname.split("/")[2]}&page=${page}${window.location.search.replace("?", "&").replace(`sortMode=${search.get("sortMode")}`, search.get("sortMode") == "asc" ? `sortMode=1` : `sortMode=-1`)}`
+                })
+                return res
+            } catch (error) {
+                console.log(error)
+            }
+        }
+
+        async function getTodo(id) {
+            try {
+                const res = await $.ajax({
+                    method: "GET",
+                    url: `/api/todos/${id}`
+                })
+                return res
+            } catch (error) {
+                console.log(error)
+            }
+        }
+
+        async function editTodo(id) {
+            try {
+
+                const title = $(`#title${id}`).val()
+                const complete = $(`#complete${id}`).prop("checked")
+                const deadline = $(`#deadline${id}`).val().split("T").join(" ")
+                await $.ajax({
+                    method: "PUT",
+                    url: `/api/todos/${id}`,
+                    data: {
+                        title,
+                        complete,
+                        deadline
+                    }
+                })
+
+                window.location = window.location.href
+            } catch (error) {
+                console.log(error)
+            }
+        }
+
+        async function addTodo(executor) {
+            try {
+                const title = $("#addItem").val()
+                await $.ajax({
+                    method: "POST",
+                    url: "/api/todos",
+                    data: {
+                        title,
+                        complete: false,
+                        deadline: new Date(+new Date() + 86400000).toLocaleString('af-ZA'),
+                        executor
+                    }
+                })
+
+                window.location = window.location.href
+            } catch (error) {
+                console.log(error)
+            }
+        }
+
+        async function deleteTodo(id) {
+            await $.ajax({
+                method: "DELETE",
+                url: `/api/todos/${id}`
+            })
+
+            window.location = window.location.href
+        }
+
+
+    </script>
+    <%- include('partials/footer') %>

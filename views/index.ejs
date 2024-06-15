@@ -1,0 +1,358 @@
+<%- include('partials/header') %>
+  <div class="card mb-5 mt-5">
+    <div class="card-header p-4">
+      <h1 class="text-center">MongoDB Breads(Browse, Read, Edit, Add, Delete, Sort)</h1>
+    </div>
+    <form autocomplete="off">
+      <input type="hidden" name="page" value="1">
+      <input type="hidden" name="sortBy" value="_id">
+      <input type="hidden" name="sortMode" value="asc">
+      <div class="m-3 row">
+        <div class="col-sm-2">
+          <div class="input-group mb-3">
+            <span class="input-group-text">Show</span>
+            <select name="limit" id="" class="form-control">
+              <option value="0" <%=limit==0 ? "selected" : "" %>>All</option>
+              <option value="5" <%=limit==5 ? "selected" : "" %>>5</option>
+              <option value="10" <%=limit==10 ? "selected" : "" %>>10</option>
+            </select>
+            <span class="input-group-text">entries</span>
+          </div>
+        </div>
+        <div class="col-sm-10">
+          <div class="mb-3 d-flex">
+            <input type="text" class="form-control" placeholder="search" name="query" value="<%= query %>">
+            <button type="submit" class="btn btn-outline-success"><i class="fa-solid fa-magnifying-glass"></i></button>
+            <a href="/" class="btn btn-outline-warning"><i class="fa-solid fa-rotate"></i></a>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <table class="table table-striped">
+      <thead>
+        <th>No.</th>
+        <th id="thName">Name</th>
+        <th id="thPhone">Phone</th>
+        <th>actions</th>
+      </thead>
+      <tbody>
+      </tbody>
+
+    </table>
+
+    <div class="card-footer">
+      <div class="m-3 row">
+        <div class="col-sm-8">
+          <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addItem"><i
+              class="fa-solid fa-plus"></i></button>
+        </div>
+        <div class="col-sm-4 d-flex justify-content-sm-around align-items-center">
+          <p id="entriesInfo"></p>
+          <nav aria-label="Page navigation example">
+            <ul class="pagination">
+            </ul>
+          </nav>
+        </div>
+      </div>
+
+      <div class="modal fade" id="addItem" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-labelledby="staticBackdropLabel" aria-hidden="true">
+        <div class="modal-dialog" style="background: none ;">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h1 class="modal-title fs-5" id="staticBackdropLabel">User Form</h1>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
+                onclick="formClean()"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3 row">
+                <div class="col-sm-2">
+                  <label for="name" class="form-label mt-1">Name</label>
+                </div>
+                <div class="col-sm-10">
+                  <input type="text" class="form-control" id="addItemName" name="name">
+                </div>
+              </div>
+              <div class="mb-3 row">
+                <div class="col-sm-2">
+                  <label for="phone" class="form-label mt-1">Phone</label>
+                </div>
+                <div class="col-sm-10">
+                  <input type="text" class="form-control" id="addItemPhone" name="phone" onkeypress="return event.charCode >= 48 && event.charCode <= 57">
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
+                onclick="formClean()">Close</button>
+              <button type="submit" class="btn btn-primary" onclick="addUser()">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+    </div>
+
+  </div>
+
+  <script>
+    const table = document.querySelector("tbody")
+    const search = new URLSearchParams(window.location.search)
+    const form = document.getElementById("filtering")
+    const pagination = document.querySelector(".pagination")
+    const para = document.getElementById("entriesInfo")
+    const thName = document.getElementById("thName")
+    const thPhone = document.getElementById("thPhone")
+
+    window.location.href == "http://localhost:3000/" ? window.location.href += "?page=1&sortBy=_id&sortMode=asc" : window.location.href
+
+    let html = ''
+
+    main()
+
+    async function request() {
+      try {
+        const data = await fetch(`/api/users${window.location.search.replace(`sortMode=${search.get("sortMode")}`, search.get("sortMode") == "asc" ? `sortMode=1` : `sortMode=-1`)}`)
+        return data.json()
+      } catch (error) {
+        console.log("Failed to fetch", error)
+      }
+    }
+
+    async function main() {
+      try {
+        const datas = await request()
+        let index = 1;
+
+        for (let data of datas.user) {
+          const user = await getUser(data._id)
+
+          html += `
+          <tr>
+            <td class="indexNumber">${datas.offset + index++}</td>
+            <td>${data.name}</td>
+            <td>${data.phone}</td>
+            <td>
+              <a class="btn btn-success" href="/edit/${data._id}" data-bs-toggle="modal" data-bs-target="#editItem${data._id}"><i class="fa-solid fa-pen"></i></a>
+              <a class="btn btn-danger" href="/delete/${data._id}" data-bs-toggle="modal" data-bs-target="#deleteItem${data._id}"><i class="fa-solid fa-trash"></i></a>
+              <a class="btn btn-warning" href="/users/${data._id}/todos"><i class="fa-solid fa-right-from-bracket"></i></a>
+            </td>
+          </tr>
+          
+  
+          <div class="modal fade" id="editItem${data._id}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-labelledby="staticBackdropLabel" aria-hidden="true">
+        <div class="modal-dialog" style="background: none ;">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h1 class="modal-title fs-5" id="staticBackdropLabel">User Form</h1>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+          <div class="modal-body">
+                <div class="mb-3 row">
+                    <div class="col-sm-2">
+                      <label for="name" class="form-label mt-1">Name</label>
+                    </div>
+                    <div class="col-sm-10">
+                      <input type="text" class="form-control" id="name${data._id}" name="name" value="${user[0].name}">
+                    </div>
+                </div>
+                <div class="mb-3 row">
+                    <div class="col-sm-2">
+                      <label for="phone" class="form-label mt-1">Phone</label>
+                    </div>
+                    <div class="col-sm-10">
+                      <input type="text" class="form-control" id="phone${data._id}" name="phone" value="${user[0].phone}" onkeypress="return event.charCode >= 48 && event.charCode <= 57">
+                    </div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" class="btn btn-primary" onclick="updateUser('${data._id}')">Save Changes</button>
+              </div>
+          </div>
+        </div>
+      </div>
+  
+      <div class="modal fade" id="deleteItem${data._id}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-labelledby="staticBackdropLabel" aria-hidden="true">
+        <div class="modal-dialog" style="background: none ;">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h1 class="modal-title fs-5" id="staticBackdropLabel">Delete Confirmation</h1>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>are you sure?</p>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+                <button type="submit" class="btn btn-primary" onclick="deleteUser('${data._id}')">Yes</button>
+              </div>
+          </div>
+        </div>
+      </div>
+            `
+        }
+
+        table.innerHTML = html
+
+        html = ''
+
+        if (search.get("page") != 1) {
+          html += `
+          <li class="page-item">
+            <a class="page-link" href="${window.location.href.replace(`page=${search.get("page")}`, `page=${Number(search.get("page")) - 1}`)}" aria-label="Previous">
+              <span aria-hidden="true">&laquo;</span>
+            </a>
+          </li>
+          `
+        }
+
+        for (let i = 1; i <= datas.pages; i++) {
+
+          if (search.get("page") == i) {
+            html += `
+          <li class="page-item"><a class="page-link active" href="${window.location.href.replace(`page=${search.get("page")}`, `page=${i}`)}">${i}</a></li>
+          `
+          } else {
+            html += `
+            <li class="page-item"><a class="page-link" href="${window.location.href.replace(`page=${search.get("page")}`, `page=${i}`)}">${i}</a></li>
+            `
+          }
+
+        }
+
+        if (search.get("page") < datas.pages) {
+          html += `
+          <li class="page-item">
+            <a class="page-link" href="${window.location.href.replace(`page=${search.get("page")}`, `page=${Number(search.get("page")) + 1}`)}" aria-label="Next">
+              <span aria-hidden="true">&raquo;</span>
+            </a>
+          </li>
+          `
+        }
+
+        pagination.innerHTML = html
+
+        const firstIndex = document.querySelectorAll(".indexNumber")[0]
+        const lastIndex = document.querySelectorAll(".indexNumber")[document.querySelectorAll(".indexNumber").length - 1]
+
+        html = `Showing ${firstIndex?.innerText || 0} to ${lastIndex?.innerText || 0} of ${datas.total} entries`
+
+        para.innerHTML = html
+
+
+        html = `
+        <a href="${search.get("sortBy") != "name" ? window.location.href.replace(`sortBy=${search.get("sortBy")}&sortMode=${search.get("sortMode")}`, `sortBy=name&sortMode=asc`) : search.get("sortMode") == "asc" ? window.location.href.replace(`sortMode=${search.get("sortMode")}`, `sortMode=desc`) : window.location.href.replace(`sortMode=${search.get("sortMode")}`, `sortMode=asc`)}" style="text-decoration: none; color: #000;">Name <i class="${search.get("sortBy") != "name" ? "fa-solid fa-sort" : search.get("sortMode") == "asc" ? "fa-solid fa-sort-up" : "fa-solid fa-sort-down"}"></i></a>
+        `
+
+        thName.innerHTML = html
+
+        html = `
+        <a href="${search.get("sortBy") != "phone" ? window.location.href.replace(`sortBy=${search.get("sortBy")}&sortMode=${search.get("sortMode")}`, `sortBy=phone&sortMode=asc`) : search.get("sortMode") == "asc" ? window.location.href.replace(`sortMode=${search.get("sortMode")}`, `sortMode=desc`) : window.location.href.replace(`sortMode=${search.get("sortMode")}`, `sortMode=asc`)}" style="text-decoration: none; color: #000;">Phone <i class="${search.get("sortBy") != "phone" ? "fa-solid fa-sort" : search.get("sortMode") == "asc" ? "fa-solid fa-sort-up" : "fa-solid fa-sort-down"}"></i></a>
+        `
+
+        thPhone.innerHTML = html
+
+      } catch (error) {
+        console.log(error)
+      }
+    }
+
+    async function getUser(id) {
+      try {
+        const data = await fetch(`/api/users/${id}`)
+        const res = data.json()
+        return res
+      } catch (error) {
+        console.log(error)
+      }
+    }
+
+    async function updateUser(id) {
+      try {
+        const name = document.getElementById(`name${id}`).value
+        const phone = document.getElementById(`phone${id}`).value
+
+        const send = {}
+
+
+        if (name) send.name = name
+        if (phone) send.phone = phone
+
+        const method = {
+          method: "PUT",
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(send)
+        }
+
+        await fetch(`/api/users/${id}`, method)
+
+        window.location = "/"
+
+
+      } catch (error) {
+        console.log(error)
+      }
+    }
+
+    function formClean() {
+        const name = document.getElementById("addItemName")
+        const phone = document.getElementById("addItemPhone")
+
+        name.value = ''
+        phone.value = ''
+    }
+
+    async function deleteUser(id) {
+      try {
+        const method = {
+          method: "DELETE",
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+
+        await fetch(`/api/users/${id}`, method)
+        await fetch(`/api/todos/many/${id}`, method)
+
+        window.location = "/"
+      } catch (error) {
+        console.log(error)
+      }
+    }
+
+    async function addUser() {
+      try {
+        const name = document.getElementById("addItemName").value
+        const phone = document.getElementById("addItemPhone").value
+
+        if (!name || !phone) return alert("credentials are required")
+
+        const send = { name, phone }
+
+        const method = {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(send)
+        }
+
+        await fetch(`/api/users`, method)
+
+        window.location = "/"
+      } catch (error) {
+        console.log(error)
+      }
+    }
+
+
+  </script>
+
+  <%- include('partials/footer') %>
