@@ -36,10 +36,10 @@ async function launch() {
 
     for (let i = 0; i < 150; i++) {
       insertedData.push({
-        title: makeid(10),
+        title: `title ke ${i}`,
         complete: false,
-        deadline: new Date(+new Date() + 86400000).toLocaleString("af-ZA"),
-        executor: new ObjectId("666d5f98f6e3a81acd117c87"),
+        deadline: new Date(+new Date() + Number(`8640${i}000`)).toLocaleString("af-ZA"),
+        executor: new ObjectId("6684e367bfa2e9dad1c4c279"),
       });
     }
 

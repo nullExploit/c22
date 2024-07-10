@@ -58,6 +58,8 @@ module.exports = function (db) {
       const total = await Todo.countDocuments(where);
       const pages = limit ? Math.ceil(total / limit) : 1;
 
+      console.log(where)
+
       res.json({
         todo,
         total,

@@ -3,29 +3,23 @@
         <div class="card-header p-4">
             <h1 class="text-center">Todo List</h1>
         </div>
-        <form action="" autocomplete="off">
-            <input type="hidden" name="page" value="1">
-            <input type="hidden" name="sortBy" value="deadline">
-            <input type="hidden" name="sortMode" value="desc">
+        <form action="" autocomplete="off" id="searchForm">
             <div class="m-3 row">
                 <label for="name" class="col-sm-2 col-form-label">Title</label>
                 <div class="col-sm-10">
-                    <input type="text" class="form-control" id="title" name="title" value="<%= title %>"
-                        placeholder="Insert your title">
+                    <input type="text" class="form-control" id="title" name="title" placeholder="Insert your title">
                 </div>
             </div>
             <div class="m-3 row">
                 <label for="deadlineFrom" class="col-sm-2 col-form-label">Deadline</label>
                 <div class="col-sm-4">
-                    <input type="datetime-local" class="form-control" id="startdateDeadline" name="startdateDeadline"
-                        value="<%= startdateDeadline %>">
+                    <input type="datetime-local" class="form-control" id="startdateDeadline" name="startdateDeadline">
                 </div>
                 <div class="col-sm-2">
                     <span class="text-center d-block">s.d</span>
                 </div>
                 <div class="col-sm-4">
-                    <input type="datetime-local" class="form-control" id="enddateDeadline" name="enddateDeadline"
-                        value="<%= enddateDeadline %>">
+                    <input type="datetime-local" class="form-control" id="enddateDeadline" name="enddateDeadline">
                 </div>
             </div>
             <div class="m-3 row">
@@ -33,8 +27,8 @@
                 <div class="col-sm-10">
                     <select id="complete" class="form-select" name="complete">
                         <option value="" selected>- Select Complete -</option>
-                        <option value="true" <%=complete=="true" ? "selected" : "" %>>Yes</option>
-                        <option value="false" <%=complete=="false" ? "selected" : "" %>>Not yet</option>
+                        <option value="true">Yes</option>
+                        <option value="false">Not yet</option>
                     </select>
                 </div>
             </div>
@@ -57,9 +51,14 @@
         </div>
     </div>
     <script>
-        const search = new URLSearchParams(window.location.search)
         let html = ''
-        let loop = ''
+        let indexLimit = 10
+        let by = "deadline"
+        let mode = -1
+        let start = ''
+        let end = ''
+        let complete = ''
+        let query = ''
         let ind = 1
 
         function repeat() {
@@ -81,9 +80,6 @@
                 if (datas.page >= datas.pages) $(window).off()
 
                 for (let data of datas.todo) {
-                    const todo = await getTodo(data._id) || {}
-
-                    window.location.href == `http://localhost:3000/users/${data.executor}/todos` ? window.location.href += "?sortBy=deadline&sortMode=desc&limit=10" : window.location.href
 
                     html += `
                     <div class="alert alert-${data.complete ? "success" : data.deadline < new Date().toLocaleString('af-ZA') ? "danger" : "secondary"}" role="alert">
@@ -112,7 +108,7 @@
                                     <label for="title${data._id}" class="form-label mt-1">Title</label>
                                     </div>
                                     <div class="col-sm-10">
-                                    <input type="text" class="form-control" id="title${data._id}" name="title" value="${todo[0].title}">
+                                    <input type="text" class="form-control" id="title${data._id}" name="title" value="${data.title}">
                                     </div>
                                 </div>
                                 <div class="mb-3 row">
@@ -120,7 +116,7 @@
                                     <label for="deadline${data._id}" class="form-label mt-1">Deadline</label>
                                     </div>
                                     <div class="col-sm-10">
-                                    <input type="datetime-local" class="form-control" id="deadline${data._id}" name="deadline" value="${todo[0].deadline}">
+                                    <input type="datetime-local" class="form-control" id="deadline${data._id}" name="deadline" value="${data.deadline}">
                                     </div>
                                 </div>
                                 <div class="mb-3 row">
@@ -128,14 +124,14 @@
                                         <label for="complete${data._id}" class="form-label mt-1">Complete</label>
                                     </div>
                                     <div class="col-sm-10">
-                                        <input type="checkbox" class="form-check-input mt-2 mx-1" id="complete${data._id}" name="complete" ${todo[0].complete ? "checked" : ""}>
+                                        <input type="checkbox" class="form-check-input mt-2 mx-1" id="complete${data._id}" name="complete" ${data.complete ? "checked" : ""}>
                                         <label for="complete${data._id}" class="form-label mt-1">Done</label>
                                     </div>
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" class="btn btn-primary" onclick="editTodo('${data._id}')">Save Changes</button>
+                                <button type="button" class="btn btn-secondary" onclick="main()" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-primary" data-bs-dismiss="modal" onclick="editTodo('${data._id}')">Save Changes</button>
                             </div>
                         </div>
                         </div>
@@ -154,7 +150,7 @@
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
-                                <button type="submit" class="btn btn-primary" onclick="deleteTodo('${data._id}')">Yes</button>
+                                <button type="submit" class="btn btn-primary" data-bs-dismiss="modal" onclick="deleteTodo('${data._id}')">Yes</button>
                             </div>
                         </div>
                         </div>
@@ -164,9 +160,46 @@
 
                 $("#todos").html(html)
 
-                $("#deadlineSort").attr("href", search.get("sortMode") == "desc" ? window.location.href.replace(`sortMode=${search.get("sortMode")}`, "sortMode=asc") : window.location.href.replace(`sortMode=${search.get("sortMode")}`, "sortMode=desc"))
+                document.querySelector("#deadlineSort").onclick = () => {
+                    mode = mode == 1 ? -1 : 1
+                    ind = 1
+                    html = ''
+                    $(window).scroll(repeat)
 
-                $("#buttonReset").attr("href", `${window.location.origin}${window.location.pathname}`)
+                    main()
+                }
+
+                document.querySelector("#searchForm").onsubmit = event => {
+                    event.preventDefault()
+
+                    query = $("#title").val()
+                    start = $("#startdateDeadline").val().replace("T", " ")
+                    end = $("#enddateDeadline").val().replace("T", " ")
+                    complete = $("#complete").val()
+
+                    ind = 1
+                    html = ''
+                    $(window).scroll(repeat)
+                    main()
+                }
+
+
+                document.querySelector("#buttonReset").onclick = () => {
+                    query = ''
+                    start = ''
+                    end = ''
+                    complete = ''
+
+                    $("#title").val('')
+                    $("#startdateDeadline").val('')
+                    $("#enddateDeadline").val('')
+                    $("#complete").val('')
+
+                    ind = 1
+                    html = ''
+                    $(window).scroll(repeat)
+                    main()
+                }
 
             } catch (error) {
                 console.log(error)
@@ -177,19 +210,7 @@
             try {
                 const res = await $.ajax({
                     method: "GET",
-                    url: `/api/todos?executor=${window.location.pathname.split("/")[2]}&page=${page}${window.location.search.replace("?", "&").replace(`sortMode=${search.get("sortMode")}`, search.get("sortMode") == "asc" ? `sortMode=1` : `sortMode=-1`)}`
-                })
-                return res
-            } catch (error) {
-                console.log(error)
-            }
-        }
-
-        async function getTodo(id) {
-            try {
-                const res = await $.ajax({
-                    method: "GET",
-                    url: `/api/todos/${id}`
+                    url: `/api/todos?executor=${window.location.pathname.split("/")[2]}&page=${page}&sortBy=${by}&sortMode=${mode}&limit=${indexLimit}&title=${query}&complete=${complete}&startdateDeadline=${start}&enddateDeadline=${end}`
                 })
                 return res
             } catch (error) {
@@ -213,7 +234,10 @@
                     }
                 })
 
-                window.location = window.location.href
+                ind = 1
+                html = ''
+                $(window).scroll(repeat)
+                main()
             } catch (error) {
                 console.log(error)
             }
@@ -228,12 +252,17 @@
                     data: {
                         title,
                         complete: false,
-                        deadline: new Date(+new Date() + 86400000).toLocaleString('af-ZA'),
+                        deadline: new Date(+new Date() + 86400000).toLocaleString('af-ZA').slice(0, 16),
                         executor
                     }
                 })
 
-                window.location = window.location.href
+                $("#addItem").val('')
+
+                ind = 1
+                html = ''
+                $(window).scroll(repeat)
+                main()
             } catch (error) {
                 console.log(error)
             }
@@ -245,7 +274,10 @@
                 url: `/api/todos/${id}`
             })
 
-            window.location = window.location.href
+            ind = 1
+            html = ''
+            $(window).scroll(repeat)
+            main()
         }
 
 
